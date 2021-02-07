@@ -1,0 +1,3 @@
+JUN = 0
+GYAKU = 1
+NEUTRAL = 2
