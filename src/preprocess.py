@@ -25,8 +25,8 @@ def _mk_batch(dataset, max_length, batch_size, device, pad):
 
     for i, data in enumerate(dataset):
         apparent_length = min(len(data['src']), max_length)
-        batch['src'][i][:apparent_length] = torch.Tensor(data['src'])
-        batch['tgt'][i][0] = data['tgt']
+        batch['src'][i][:apparent_length] = torch.tensor(data['src'], device=device)
+        batch['tgt'][i] = data['tgt']
 
     return batch
 
@@ -34,12 +34,12 @@ def _mk_batch(dataset, max_length, batch_size, device, pad):
 def _mk_initial_batch(max_length, batch_size, device, pad):
     batch = {}
     batch['src'] = torch.full((batch_size, max_length), fill_value=pad, device=device, dtype=torch.long)
-    batch['tgt'] = torch.full((batch_size, 1), fill_value=NEUTRAL, device=device, dtype=torch.long)
+    batch['tgt'] = torch.full((batch_size,), fill_value=NEUTRAL, device=device, dtype=torch.long)
 
     return batch
 
 
-def _mk_batches(dataset, max_length, batch_size, device, pad):
+def mk_batches(dataset, max_length, batch_size, device, pad):
     data_order = torch.randperm(len(dataset))
     dataset = [dataset[idx] for idx in data_order]
     batches = []
@@ -53,17 +53,19 @@ def _mk_batches(dataset, max_length, batch_size, device, pad):
             current_data = []
 
         current_data.append(d)
+    
+    if len(current_data) == batch_size:
+        batch = _mk_batch(current_data, max_length, batch_size, device, pad)
+        batches.append(batch)
 
     return batches
 
 
-def preprocess(src_data, tokenizer, config, batch_size):
+def preprocess(src_data, tokenizer, config, batch_size, device):
     pad_token_id = config.pad_token_id
 
     dataset, max_length = _preprocess_dataset(src_data, tokenizer)
 
-    print('max_length is {}'.format(max_length))
+    # dataset = _mk_batches(dataset=dataset, max_length=max_length, batch_size=batch_size, device=device, pad=pad_token_id)
 
-    dataset = _mk_batches(dataset=dataset, max_length=max_length, batch_size=batch_size, device='cpu', pad=pad_token_id)
-
-    return dataset
+    return dataset, max_length
