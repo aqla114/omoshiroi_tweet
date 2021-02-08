@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from transformers import BertJapaneseTokenizer, BertConfig
 from src.model import BertPredictor, Perceptron
-from src.preprocess import preprocess, mk_batches
+from src.preprocess import preprocess, mk_batches, normalize_dataset
 from src.constant import JUN, GYAKU, NEUTRAL
 
 tweet_filename = './data/tweet.json'
@@ -72,22 +72,23 @@ def main():
     valid_dataset = dataset[-128:]
 
     train_dataset, train_max_length = preprocess(train_dataset, tokenizer, config, batch_size=batch_size, device=device)
+    train_dataset = normalize_dataset(train_dataset)
     valid_dataset, valid_max_length = preprocess(valid_dataset, tokenizer, config, batch_size=batch_size, device=device)
 
     valid_batches = mk_batches(dataset=valid_dataset, max_length=valid_max_length, batch_size=batch_size, device=device, pad=pad_token_id)
 
     print('Train dataset size is {}, Valid dataset size is {}'.format(len(train_dataset), len(valid_dataset)))
 
-    # model = BertPredictor(config_path=config_path, model_path=config_path)
-    model = Perceptron(vocab_size=tokenizer.vocab_size, hidden_size=128, device=device)
+    model = BertPredictor(config_path=config_path, model_path=config_path)
+    # model = Perceptron(vocab_size=tokenizer.vocab_size, hidden_size=128, device=device)
 
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss(ignore_index=NEUTRAL)
 
-    optimizer = optim.SGD(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.0001)
 
-    for epoch in range(40):
+    for epoch in range(10):
         print('------ Epoch {} ------'.format(epoch + 1))
 
         train_batches = mk_batches(dataset=train_dataset, max_length=train_max_length, batch_size=batch_size, device=device, pad=pad_token_id)
@@ -95,7 +96,7 @@ def main():
         print('Train')
         model.train()
         accuracy = 0.0
-        for batch in train_batches:
+        for i, batch in enumerate(train_batches):
             model.zero_grad()
 
             src = batch['src']
@@ -108,14 +109,14 @@ def main():
 
             labels = torch.argmax(output, dim=-1)
 
-            accuracy += (labels == tgt).sum()
+            accuracy = ((labels == tgt).sum() + accuracy * i * batch_size) / ((i + 1) * batch_size) 
 
             loss.backward()
             optimizer.step()
 
-            sys.stdout.write('\rLoss {}                '.format(loss.item()))
+            sys.stdout.write('\rLoss: {},  Accuracy: {}'.format(loss.item(), accuracy))
         
-        accuracy /= len(train_dataset)
+        # accuracy /= len(train_dataset)
 
         print('\nTrain accuracy {}'.format(accuracy))
 

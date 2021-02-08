@@ -60,12 +60,28 @@ def mk_batches(dataset, max_length, batch_size, device, pad):
 
     return batches
 
+def normalize_dataset(src_data):
+    jun_dataset = list(filter(lambda x: x['tgt'] == JUN, src_data))
+    gyaku_dataset = list(filter(lambda x: x['tgt'] == GYAKU, src_data))
+
+    gyaku_count = len(gyaku_dataset)
+
+    jun_dataset = jun_dataset[:gyaku_count]
+
+    dataset = jun_dataset + gyaku_dataset
+
+    # data_order = torch.randperm(len(dataset))
+
+    # dataset = [dataset[i] for i in data_order]
+
+    print('JUN == GYAKU : {}'.format(gyaku_count))
+    
+    return dataset
+
 
 def preprocess(src_data, tokenizer, config, batch_size, device):
     pad_token_id = config.pad_token_id
 
     dataset, max_length = _preprocess_dataset(src_data, tokenizer)
-
-    # dataset = _mk_batches(dataset=dataset, max_length=max_length, batch_size=batch_size, device=device, pad=pad_token_id)
 
     return dataset, max_length
